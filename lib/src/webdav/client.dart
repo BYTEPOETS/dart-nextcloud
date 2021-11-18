@@ -51,8 +51,7 @@ class WebDavClient {
     if (path.startsWith('/')) {
       path = path.substring(1, path.length);
     }
-    _username =
-        _username ?? (await UserClient(_baseUrl, _network).getUser()).id;
+    _username = _username ?? (await UserClient(_baseUrl, _network).getUser()).id;
     return '/files/$_username/$path';
   }
 
@@ -60,8 +59,7 @@ class WebDavClient {
     if (_useBackwardsCompatiblePaths) {
       return path;
     }
-    _username =
-        _username ?? (await UserClient(_baseUrl, _network).getUser()).id;
+    _username = _username ?? (await UserClient(_baseUrl, _network).getUser()).id;
     return path.replaceFirst('/files/$_username/', '');
   }
 
@@ -86,8 +84,7 @@ class WebDavClient {
   /// Registers a custom namespace for properties.
   ///
   /// Requires a unique [namespaceUri] and [prefix].
-  void registerNamespace(String namespaceUri, String prefix) =>
-      namespaces.putIfAbsent(namespaceUri, () => prefix);
+  void registerNamespace(String namespaceUri, String prefix) => namespaces.putIfAbsent(namespaceUri, () => prefix);
 
   /// returns the WebDAV capabilities of the server
   Future<WebDavStatus> status() async {
@@ -155,8 +152,7 @@ class WebDavClient {
           .bodyBytes;
 
   /// download [remotePath] and store the response file contents to ByteStream
-  Future<http.ByteStream> downloadStream(String remotePath) async =>
-      (await _network.download(
+  Future<http.ByteStream> downloadStream(String remotePath) async => (await _network.download(
         'GET',
         await _getUrl(remotePath),
         [200],
@@ -165,8 +161,7 @@ class WebDavClient {
 
   /// download [remotePath] and returns the received bytes
   Future<Uint8List> downloadDirectoryAsZip(String remotePath) async {
-    final url =
-        '$_baseUrl/index.php/apps/files/ajax/download.php?dir=$remotePath';
+    final url = '$_baseUrl/index.php/apps/files/ajax/download.php?dir=$remotePath';
     final result = await _send(
       'GET',
       url,
@@ -179,8 +174,7 @@ class WebDavClient {
   Future<http.ByteStream> downloadStreamDirectoryAsZip(
     String remotePath,
   ) async {
-    final url =
-        '$_baseUrl/index.php/apps/files/ajax/download.php?dir=$remotePath';
+    final url = '$_baseUrl/index.php/apps/files/ajax/download.php?dir=$remotePath';
     return (await _network.download(
       'GET',
       url,
@@ -228,6 +222,104 @@ class WebDavClient {
       return ls(response.headers['location']!);
     }
     final files = treeFromWebDavXml(response.body)..removeAt(0);
+    for (final file in files) {
+      file.path = await _removeFilesPath(file.path);
+    }
+    return files;
+  }
+
+  /// search the directories and files by given [searchString],
+  ///
+  Future<List<WebDavFile>> search(
+    String searchString,
+    String folderString, {
+    Set<String> props = const {
+      WebDavProps.ocFileId,
+      WebDavProps.davDisplayName,
+      WebDavProps.davContentType,
+      WebDavProps.davETag,
+      WebDavProps.ocSize
+    },
+  }) async {
+    final builder = XmlBuilder();
+    builder
+      ..processing('xml', 'version="1.0"')
+      ..element(
+        'd:searchrequest',
+        nest: () {
+          namespaces.forEach(builder.namespace);
+          builder.element(
+            'd:basicsearch',
+            nest: () {
+              builder
+                ..element(
+                  'd:select',
+                  nest: () {
+                    builder.element(
+                      'd:prop',
+                      nest: () {
+                        props.forEach(builder.element);
+                      },
+                    );
+                  },
+                )
+                ..element(
+                  'd:from',
+                  nest: () {
+                    builder.element(
+                      'd:scope',
+                      nest: () {
+                        builder
+                          ..element(
+                            'd:href',
+                            nest: () {
+                              builder.text(folderString);
+                            },
+                          )
+                          ..element(
+                            'd:depth',
+                            nest: () {
+                              builder.text('infinity');
+                            },
+                          );
+                      },
+                    );
+                  },
+                )
+                ..element(
+                  'd:where',
+                  nest: () {
+                    builder.element(
+                      'd:like',
+                      nest: () {
+                        builder
+                          ..element(
+                            'd:prop',
+                            nest: () {
+                              builder.element(WebDavProps.davDisplayName);
+                            },
+                          )
+                          ..element(
+                            'd:literal',
+                            nest: () {
+                              builder.text(searchString);
+                            },
+                          );
+                      },
+                    );
+                  },
+                );
+            },
+          );
+        },
+      );
+
+    final data = utf8.encode(builder.buildDocument().toString());
+    final response = await _send('SEARCH', _davUrl, [207, 301], data: Uint8List.fromList(data));
+    if (response.statusCode == 301) {
+      return search(searchString, folderString);
+    }
+    final files = treeFromWebDavXml(response.body);
     for (final file in files) {
       file.path = await _removeFilesPath(file.path);
     }
@@ -419,6 +511,7 @@ class WebDavStatus {
 class WebDavProps {
   /// All WebDAV props supported by Nextcloud, in prefix form
   static const all = {
+    davDisplayName,
     davContentLength,
     davContentType,
     davETag,
@@ -451,6 +544,9 @@ class WebDavProps {
     ocSystemTag,
     ocTags,
   };
+
+  /// The display name of the file  .
+  static const davDisplayName = 'd:displayname';
 
   /// Contains the Last-Modified header value  .
   static const davLastModified = 'd:getlastmodified';

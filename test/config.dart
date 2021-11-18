@@ -2,10 +2,10 @@ import 'package:nextcloud/nextcloud.dart';
 
 // ignore: avoid_classes_with_only_static_members
 class Config {
-  static Uri host = Uri.parse('http://localhost:8080');
-  static String username = 'admin';
-  static String password = 'password';
-  static String email = 'admin@example.com';
+  static Uri host = Uri.parse('');
+  static String username = '';
+  static String password = '';
+  static String email = '';
 }
 
 NextCloudClient getClient() => NextCloudClient.withCredentials(
