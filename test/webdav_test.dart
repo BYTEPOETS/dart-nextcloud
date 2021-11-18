@@ -105,8 +105,7 @@ void main() {
       final data = utf8.encode('WebDAV copytest');
       await client.webDav.upload(Uint8List.fromList(data), path);
 
-      final response = await client.webDav
-          .copy('$testDir/test.txt', '$testDir/copy-test.txt', overwrite: true);
+      final response = await client.webDav.copy('$testDir/test.txt', '$testDir/copy-test.txt', overwrite: true);
       expect(response.statusCode, 204);
     });
     test('Move file', () async {
@@ -135,8 +134,7 @@ void main() {
       final data = utf8.encode('WebDAV movetest');
       await client.webDav.upload(Uint8List.fromList(data), path);
 
-      final response = await client.webDav
-          .move('$testDir/test.txt', '$testDir/move-test.txt', overwrite: true);
+      final response = await client.webDav.move('$testDir/test.txt', '$testDir/move-test.txt', overwrite: true);
       expect(response.statusCode, 204);
     });
     test('Get file properties', () async {
@@ -191,8 +189,7 @@ void main() {
     test('Filter files', () async {
       const path = '$testDir/filter-test.txt';
       final data = utf8.encode('WebDAV filtertest');
-      final response =
-          await client.webDav.upload(Uint8List.fromList(data), path);
+      final response = await client.webDav.upload(Uint8List.fromList(data), path);
       final id = response.headers['oc-fileid'];
 
       // Favorite file
@@ -218,10 +215,8 @@ void main() {
       final createdDate = DateTime.utc(1971, 2);
       final createdEpoch = createdDate.millisecondsSinceEpoch / 1000;
       const path = '$testDir/prop-test.txt';
-      final updated = await client.webDav.updateProps(path, {
-        WebDavProps.ocFavorite: '1',
-        WebDavProps.ncCreationTime: '$createdEpoch'
-      });
+      final updated = await client.webDav
+          .updateProps(path, {WebDavProps.ocFavorite: '1', WebDavProps.ncCreationTime: '$createdEpoch'});
       expect(updated, isTrue);
 
       final file = await client.webDav.getProps(path);
@@ -234,14 +229,10 @@ void main() {
       expect(file.uploadedDate, isNotNull);
     });
     test('Set custom properties', () async {
-      final customNamespaces = {
-        'http://leonhardt.co.nz/ns': 'le',
-        'http://test/ns': 'test'
-      };
+      final customNamespaces = {'http://leonhardt.co.nz/ns': 'le', 'http://test/ns': 'test'};
       const path = '$testDir/prop-test.txt';
 
-      customNamespaces
-          .forEach((ns, prefix) => client.webDav.registerNamespace(ns, prefix));
+      customNamespaces.forEach((ns, prefix) => client.webDav.registerNamespace(ns, prefix));
 
       final updated = await client.webDav.updateProps(path, {
         'le:custom': 'le-custom-prop-value',
@@ -299,8 +290,7 @@ void main() {
       expect(files[0].path, expectedPath);
     });
 
-    test('correct parsing of path with Nextcloud host behind subpath',
-        () async {
+    test('correct parsing of path with Nextcloud host behind subpath', () async {
       // https://cloud.com/nc this is the host address
       const expectedPath = '/files/admin/dart-nextcloud-tests/';
       const xmlPath = '/nc/remote.php/dav$expectedPath';
@@ -309,6 +299,13 @@ void main() {
 
       expect(files.length, 1);
       expect(files[0].path, expectedPath);
+    });
+  });
+
+  group('Search WebDavFile', () {
+    test('Search files by name in folder', () async {
+      final response = await client.webDav.search('123456.csv', '/files/123456');
+      expect(response.length, 1);
     });
   });
 }
